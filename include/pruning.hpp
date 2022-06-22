@@ -1,9 +1,6 @@
 #pragma once
 #include <bits/stdc++.h>
 #include <routingkit/contraction_hierarchy.h>
-#include <routingkit/customizable_contraction_hierarchy.h>
-#include <routingkit/geo_position_to_node.h>
-#include <routingkit/inverse_vector.h>
 #include <routingkit/osm_simple.h>
 #include <routingkit/timer.h>
 
@@ -13,11 +10,6 @@
 
 using namespace RoutingKit;
 using namespace std;
-
-template <typename R>
-bool is_ready(std::future<R> const &f) {
-    return f.wait_for(std::chrono::seconds(0)) == std::future_status::ready;
-}
 
 void prune_modified(ContractedGraph &cg, int k, vector<bool> &has_station, ContractionHierarchy &ch_upward) {
     thread_pool pool;
@@ -193,16 +185,10 @@ void prune_modified(ContractedGraph &cg, int k, vector<bool> &has_station, Contr
     pool.wait_for_tasks();
 }
 
-vector<bool> compute_pruing_cover(ContractedGraph &cg, int k) {
-    auto tail = invert_inverse_vector(cg.first_out);
-    auto ch_upward = ContractionHierarchy::build(
-        cg.node_count(),
-        tail, cg.head,
-        cg.weight,
-        [](string msg) { std::cout << msg << endl; });
+vector<bool> compute_pruing_cover(ContractedGraph &cg, ContractionHierarchy& ch, int k) {
 	vector<bool> has_station(cg.node_count(), true);
 	cout << "start pruning" << endl;
-	prune_modified(cg, k, has_station, ch_upward);
+	prune_modified(cg, k, has_station, ch);
 	cout << "finished pruning" << endl;
 	return has_station;
 }
