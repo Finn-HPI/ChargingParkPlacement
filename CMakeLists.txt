@@ -17,6 +17,7 @@ target_link_directories(ParkPlacement PUBLIC "lib")
 target_link_libraries(ParkPlacement pthread)
 target_link_libraries(ParkPlacement routingkit)
 target_link_libraries(ParkPlacement boost_filesystem)
+target_link_libraries(ParkPlacement boost_program_options)
 
 # specify c++ standard
 set_property(TARGET ParkPlacement PROPERTY CXX_STANDARD 17)

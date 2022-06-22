@@ -27,11 +27,8 @@ int extend_charging_parks(ContractedGraph& graph, vector<int>& existing_parks, v
     }
     int added = park_ids.size();
     park_ids.clear();
-    int p = parks.size();
-    vector<bool> hit(graph.node_count(), false);
 
     auto forward_search_and_place = [&](int x, queue<int>& park_queue, bool reinsert = true, bool cover_start = false) {
-        hit[x] = true;
         using QueueElement = pair<int, double>;
         auto cmp = [](QueueElement& a, QueueElement& b) {
             return a.second > b.second;
@@ -100,10 +97,10 @@ int extend_charging_parks(ContractedGraph& graph, vector<int>& existing_parks, v
         if (!found_uncovered_path) return;
         if (cover_start) {
             has_station[x] = true;
+            ++added;
             return;
         }
         queue = {x};
-        vector<bool> temp_hit(graph.node_count(), false);
         for (int j = 0; j < int(queue.size()); ++j) {
             int v = queue[j];
             if (v != x) {
@@ -113,13 +110,6 @@ int extend_charging_parks(ContractedGraph& graph, vector<int>& existing_parks, v
                     has_station[v] = true;
                     if (reinsert) park_queue.push(v);
                     ++added;
-                    int curr = v;
-                    while (curr != -1) {
-                        if (temp_hit[curr]) break;
-                        if (!danger[curr]) hit[curr] = true;
-                        temp_hit[curr] = true;
-                        curr = p[curr];
-                    }
                     continue;
                 }
             }
@@ -157,12 +147,12 @@ vector<bool> multi_iterations(ContractedGraph& cg, int k, bool blank, function<v
         random_device rd;
         mt19937 e2(rd());
         uniform_real_distribution<> dist(0, 1);
-        uniform_real_distribution<> dist2(0, cg.node_count());
+        uniform_real_distribution<> dist2(0, cg.node_count()-1);
         double min_dist = dist(e2);
         if (blank) {
             existing_parks.clear();
             existing_parks.resize(cg.node_count());
-            int rand_pos = floor(dist(e2));
+            int rand_pos = floor(dist2(e2));
             existing_parks[rand_pos] = 1;
         }
         vector<bool> station(cg.node_count(), false);
@@ -222,7 +212,7 @@ vector<bool> multi_iterations(ContractedGraph& cg, int k, bool blank, function<v
     return best_cover;
 }
 
-vector<bool> compute_park_extending_cover(ContractedGraph& cg, int k, bool blank, function<void(vector<bool>& cover)> func, long long stop_time = 120, double min_dist = -1) {
+vector<bool> compute_park_extending_cover(ContractedGraph& cg, int k, bool blank, function<void(vector<bool>& cover)> func, long long stop_time = 120, double min_dist = -1, int number_of_threads = 20) {
     if (min_dist != -1) {
         vector<int> existing_parks = cg.parks;
         random_device rd;
@@ -240,6 +230,6 @@ vector<bool> compute_park_extending_cover(ContractedGraph& cg, int k, bool blank
         extend_charging_parks(cg, existing_parks, station, k, min_dist);
         return station;
     }else{
-        return multi_iterations(cg, k, blank, func);
+        return multi_iterations(cg, k, blank, func, stop_time, number_of_threads);
     }
 }

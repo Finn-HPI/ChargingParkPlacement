@@ -3,47 +3,41 @@
 #include <routingkit/inverse_vector.h>
 #include <routingkit/osm_simple.h>
 #include <routingkit/timer.h>
-//thread pool library: https://github.com/bshoshany/thread-pool
-#include "../include/thread_pool.hpp"
 #include "../include/stringutil.h"
+// thread pool library: https://github.com/bshoshany/thread-pool
+#include "../include/thread_pool.hpp"
+#include <boost/program_options.hpp>
 #include "../include/park_placing.hpp"
 #include "../include/peak_node_mapping.hpp"
-#include "../include/pruning.hpp"
 #include "../include/park_extending.hpp"
+#include "../include/pruning.hpp"
 
-// void export_cover(
-// 	string name,
-// 	ContractedGraph& graph,
-// 	ContractionHierarchy& ch_upward,
-// 	vector<bool> has_station,
-// 	vector<Point*>& charging_points,
-// 	vector<int>& parks,
-// 	bool order = false
-// ){
-// 	ofstream out(name);
-// 	out << "lat,lng,ionity" << endl;
-// 	unordered_map<int, bool> ionity_parks;
-// 	for (int x = 0; x < graph.node_count(); ++x) {
-// 		if (has_station[x]) {
-// 			if (order? parks[ch_upward.order[x]] == 0 : parks[x] == 0) {
-// 				if (order) {
-// 					out << graph.latitude[ch_upward.order[x]] << "," << graph.longitude[ch_upward.order[x]] << "," << false << endl;
-// 				} else {
-// 					out << graph.latitude[x] << "," << graph.longitude[x] << "," << false << endl;
-// 				}
-// 			}
-// 			else{
-// 				if (order) ionity_parks[parks[ch_upward.order[x]]] = true;
-// 				else ionity_parks[parks[x]] = true;
-// 			}
-// 		}
-// 	}
-// 	for (auto [park, is_set] : ionity_parks) {
-// 		if (!is_set) continue;
-// 		out << charging_points[park-1]->lat << "," << charging_points[park-1]->lon << "," << true << endl;
-// 	}
-// 	out.close();
-// }
+void export_cover(
+	string name,
+	ContractedGraph& graph,
+	vector<bool> has_station,
+	vector<Point*>& charging_points,
+	vector<int>& parks
+){
+	ofstream out(name);
+	out << "lat,lng,ionity" << endl;
+	unordered_map<int, bool> existing_parks;
+	for (int x = 0; x < graph.node_count(); ++x) {
+		if (has_station[x]) {
+			if (parks[x] == 0) {
+				out << graph.latitude[x] << "," << graph.longitude[x] << "," << false << endl;
+			}
+			else{
+				existing_parks[parks[x]] = true;
+			}
+		}
+	}
+	for (auto [park, is_set] : existing_parks) {
+		if (!is_set) continue;
+		out << charging_points[park-1]->lat << "," << charging_points[park-1]->lon << "," << true << endl;
+	}
+	out.close();
+}
 
 bool is_non_unique_shortest_path_covered(int src, int target, int dist, vector<bool>& has_station, ContractionHierarchy& ch) {
     ContractionHierarchyQuery query(ch);
@@ -61,7 +55,7 @@ void check_coverage(ContractedGraph& graph, vector<bool>& has_station, int k, Co
     vector<int> violations;
     vector<int> nodes;
     for (int x = 0; x < graph.node_count(); x++) {
-        cout << "check: " << x << "/" << graph.node_count()-1 << ", " << violations.size() << endl;
+        cout << "check: " << x << "/" << graph.node_count() - 1 << ", " << violations.size() << endl;
         using QueueElement = pair<int, double>;
         auto cmp = [](QueueElement& a, QueueElement& b) {
             return a.second > b.second;
@@ -119,64 +113,93 @@ void check_coverage(ContractedGraph& graph, vector<bool>& has_station, int k, Co
     cout << "violations: " << violations.size() << endl;
 }
 
-void export_cover(
-    string output_location,
-    ContractedGraph& graph,
-    vector<bool> has_station,
-    vector<Point*>& charging_points,
-    vector<int>& parks) {
-    ofstream out(output_location);
-    out << "lat,lng,ionity" << endl;
-    unordered_map<int, bool> charigng_parks;
-    for (int x = 0; x < graph.node_count(); ++x) {
-        if (has_station[x]) {
-            if (parks[x] == 0) {
-                out << graph.latitude[x] << "," << graph.longitude[x] << "," << false << endl;
-            } else {
-                charigng_parks[parks[x]] = true;
-            }
-        }
-    }
-    for (auto [park, is_set] : charigng_parks) {
-        if (!is_set) continue;
-        out << charging_points[park - 1]->lat << "," << charging_points[park - 1]->lon << "," << true << endl;
-    }
-    out.close();
-}
-
 int main(int argc, const char* argv[]) {
-    // load graph
-    string country = "germany";
-    // auto graph = simple_load_osm_car_routing_graph_from_pbf("germany_motorways.pbf", nullptr, false);
-    // auto cg = build_station_graph(graph, false);
-    // cg = contract_graph(cg, cg.location);
-    auto cg = load_graph("../data/" + country + "/" + country);  // load precomputed, contracted graph
+    try {
+        namespace po = boost::program_options;
+        po::options_description description("ParkPlacement");
+        description.add_options()("help,h", "Display this help message")("country,c", po::value<string>(), "germany, spain or europe")("k,k", po::value<int>(), "k for k-TSPC")("heuristic", po::value<string>(), "Choose from pruning, park_extending and pnm")("ionity,i", "Include IONITY charging parks")("tesla,t", "Include Tesla super-charging parks")("output,o", po::value<string>(), "Output location of produced cover")("validate,v", "Validate the produced cover")("min_dist,m", po::value<double>()->default_value(0.5), "[Park Extending] min_dist value")("random,r", po::value<bool>(), "[Park Extending] randomize min_dist value")("max_time, mt", po::value<long long>()->default_value(numeric_limits<long long>::max()), "[Park Extending] Max time (m) for finding a good cover with randomized min_dist")("pool_size,p", po::value<int>()->default_value(20), "Threadpool size");
+        po::variables_map vm;
+        po::store(po::command_line_parser(argc, argv).options(description).run(), vm);
+        po::notify(vm);
+        if (vm.count("help")) {
+            std::cout << description;
+            return 0;
+        }
+        if (!vm.count("k")) {
+            cout << "Please provide a value for k" << endl;
+            return 0;
+        }
+        if (!vm.count("country")) {
+            cout << "Please choose a graph (germany, spain, europe)" << endl;
+            return 0;
+        }
+        if (!vm.count("heuristic")) {
+            cout << "Please choose a heuristic (pruning, park_extending, pnm)" << endl;
+            return 0;
+        }
+        if (!vm.count("output")) {
+            cout << "Please provide an output location" << endl;
+            return 0;
+        }
+        string heuristic = vm["heuristic"].as<string>();
+        string country = vm["country"].as<string>();
+        string output = vm["output"].as<string>();
 
-    // uncomment to add existing charging parks
-    string ionity = "../data/ionity_charger.csv";
-    string tesla = "../data/tesla_supercharger.csv";
-    add_charging_parks(ionity, cg.node_count(), cg.first_out, cg.head, cg.weight, cg.latitude, cg.longitude, cg.parks, cg.park_points, cg.location);
-    // add_charging_parks(tesla, cg.node_count(), cg.first_out, cg.head, cg.weight, cg.latitude, cg.longitude, cg.parks, cg.park_points, cg.location);
+        // load graph
+        //  auto graph = simple_load_osm_car_routing_graph_from_pbf("germany_motorways.pbf", nullptr, false);
+        //  auto cg = build_station_graph(graph, false);
+        //  cg = contract_graph(cg, cg.location);
+        auto cg = load_graph("../data/" + country + "/" + country);  // load precomputed, contracted graph
+        // build contraction hierarchy graph
+        auto tail = invert_inverse_vector(cg.first_out);
+        auto ch = ContractionHierarchy::build(
+            cg.node_count(),
+            tail, cg.head,
+            cg.weight,
+            [](string msg) { std::cout << msg << endl; });
 
-    // build contraction hierarchy graph
-    auto tail = invert_inverse_vector(cg.first_out);
-    auto ch = ContractionHierarchy::build(
-        cg.node_count(),
-        tail, cg.head,
-        cg.weight,
-        [](string msg) { std::cout << msg << endl; });
+        if (vm.count("ionity") && vm.count("tesla")) {
+            cout << "Please only use one charing provider." << endl;
+            return 0;
+        }
+        if (vm.count("ionity")) add_charging_parks("../data/ionity_charger.csv", cg.node_count(), cg.first_out, cg.head, cg.weight, cg.latitude, cg.longitude, cg.parks, cg.park_points, cg.location);
+        if (vm.count("tesla")) add_charging_parks("../data/tesla_supercharger.csv", cg.node_count(), cg.first_out, cg.head, cg.weight, cg.latitude, cg.longitude, cg.parks, cg.park_points, cg.location);
 
-    int k = 250000;
-    // auto cover = compute_pruing_cover(cg, ch, k);
-    // auto cover = compute_pnm_cover(cg, ch, k);
-	// compute_park_extending_cover(ContractedGraph& cg, int k, bool blank, function<void(vector<bool>& cover)> func, long long stop_time = 120, double min_dist = -1) {
-	auto cover = compute_park_extending_cover(cg, k, true, [&](vector<bool>& x){}, 120, 0.532);
+        bool blank = !(vm.count("ionity") || vm.count("tesla"));
+        int k = vm["k"].as<int>();
+        int pool_size = vm["pool_size"].as<int>();
 
-    check_coverage(cg, cover, k, ch);
-    int count = 0;
-    for (int x = 0; x < cg.node_count(); ++x) {
-    	if (cover[x]) count++;
+        // compute cover
+        vector<bool> cover(cg.node_count(), false);
+        if (heuristic == "pruning") {
+            cover = compute_pruing_cover(cg, ch, k, pool_size);
+        } else if (heuristic == "pnm") {
+            cover = compute_pnm_cover(cg, ch, k);
+        } else if (heuristic == "park_extending") {
+            if (vm.count("min_dist") || vm.count("random")) {
+                if (vm.count("min_dist") && vm.count("random")) {
+                    cout << "You can't choose random and a min_dist value." << endl;
+                    return 0;
+                }
+                long long max_time = vm["max_time"].as<long long>();
+                double min_dist = vm.count("random") ? -1 : vm["min_dist"].as<double>();
+				auto export_temp_result = [&](vector<bool>& cov) {
+					export_cover(output, cg, cov, cg.park_points, cg.parks);
+				};
+                cover = compute_park_extending_cover(cg, k, blank, export_temp_result, max_time, min_dist, pool_size);
+            } else {
+                cout << "Please choose a min_dist value or random." << endl;
+            }
+        } else {
+            cout << "invalid heuristic." << endl;
+            return 0;
+        }
+        // export cover
+		export_cover(output, cg, cover, cg.park_points, cg.parks);
+        // validate cover
+        if (vm.count("validate")) check_coverage(cg, cover, k, ch);
+    } catch (const exception& ex) {
+        cerr << ex.what() << endl;
     }
-    cout << "count: " << count << endl;
     return 0;
 }

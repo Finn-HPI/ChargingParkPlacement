@@ -11,8 +11,8 @@
 using namespace RoutingKit;
 using namespace std;
 
-void prune_modified(ContractedGraph &cg, int k, vector<bool> &has_station, ContractionHierarchy &ch_upward) {
-    thread_pool pool;
+void prune_modified(ContractedGraph &cg, int k, vector<bool> &has_station, ContractionHierarchy &ch_upward, int pool_size) {
+    thread_pool pool(pool_size);
     vector<int> node_ids;
     int cover_size = 0;
     auto tail = invert_inverse_vector(cg.first_out);
@@ -185,10 +185,10 @@ void prune_modified(ContractedGraph &cg, int k, vector<bool> &has_station, Contr
     pool.wait_for_tasks();
 }
 
-vector<bool> compute_pruing_cover(ContractedGraph &cg, ContractionHierarchy& ch, int k) {
+vector<bool> compute_pruing_cover(ContractedGraph &cg, ContractionHierarchy& ch, int k, int pool_size = 20) {
 	vector<bool> has_station(cg.node_count(), true);
 	cout << "start pruning" << endl;
-	prune_modified(cg, k, has_station, ch);
+	prune_modified(cg, k, has_station, ch, pool_size);
 	cout << "finished pruning" << endl;
 	return has_station;
 }
