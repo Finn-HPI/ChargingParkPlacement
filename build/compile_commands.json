@@ -1,0 +1,7 @@
+[
+{
+  "directory": "/home/schoe/ChargingParkPlacement/build",
+  "command": "/bin/x86_64-linux-gnu-g++-9   -I/home/schoe/ChargingParkPlacement/include  -g   -std=gnu++17 -o CMakeFiles/ParkPlacement.dir/src/main.cpp.o -c /home/schoe/ChargingParkPlacement/src/main.cpp",
+  "file": "/home/schoe/ChargingParkPlacement/src/main.cpp"
+}
+]
