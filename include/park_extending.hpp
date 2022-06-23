@@ -1,8 +1,6 @@
 #pragma once
 #include <bits/stdc++.h>
 #include <routingkit/contraction_hierarchy.h>
-#include <routingkit/customizable_contraction_hierarchy.h>
-#include <routingkit/geo_position_to_node.h>
 #include <routingkit/inverse_vector.h>
 #include <routingkit/osm_simple.h>
 #include <routingkit/timer.h>
