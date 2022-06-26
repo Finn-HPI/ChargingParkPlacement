@@ -62,7 +62,6 @@ int extend_charging_parks(ContractedGraph& graph, vector<int>& existing_parks, v
         vector<int> danger(graph.node_count(), 0);
         bool found_uncovered_path = false;
         vector<int> first_dist(graph.node_count(), 0);
-        vector<int> last_dist(graph.node_count(), 0);
         for (int j = 0; j < int(queue.size()); ++j) {
             int v = queue[j];
             if (p[v] == x) {
@@ -78,12 +77,6 @@ int extend_charging_parks(ContractedGraph& graph, vector<int>& existing_parks, v
                         int curr = v;
                         while (curr != -1) {
                             reachable_stations[curr]++;
-                            curr = p[curr];
-                        }
-                    } else {
-                        int curr = v;
-                        while (curr != -1) {
-                            danger[curr]++;
                             curr = p[curr];
                         }
                     }
@@ -115,17 +108,20 @@ int extend_charging_parks(ContractedGraph& graph, vector<int>& existing_parks, v
         }
     };
 
+    auto tail = invert_inverse_vector(graph.first_out);
+    vector<list<int>> incoming_arcs(graph.node_count());
+    for (int x = 0; x < graph.node_count(); ++x) {
+        for (int arc = graph.first_out[x]; arc < graph.first_out[x+1]; ++arc)
+            incoming_arcs[graph.head[arc]].push_back(arc);
+    }
     while (!parks.empty()) {
         int x = parks.front();
         parks.pop();
         forward_search_and_place(x, parks);
     }
-    vector<list<int>> in_edges(graph.node_count());
-    auto tail = invert_inverse_vector(graph.first_out);
     for (int x = 0; x < graph.node_count(); ++x) {
-        if (!has_station[x]) {
+        if (!has_station[x])
             forward_search_and_place(x, parks, false, true);
-        }
     }
     return added;
 }

@@ -7,6 +7,12 @@ RoutingKit requires zlib to work. Under Debian and derived distributions (such a
 ```
 sudo apt-get install zlib1g-dev
 ```
+After that you can install RoutingKit with:
+```
+git clone https://github.com/RoutingKit/RoutingKit.git
+cd RoutingKit
+make
+```
 We also require [Boost](https://www.boost.org/) to be installed, which can be done using:
 ```
 sudo apt-get install libboost-all-dev
@@ -15,6 +21,18 @@ This project uses cmake. If not installed, it can be installed using:
 ```
 sudo apt-get install cmake
 ```
+### RoutingKit include and libraray files
+Create two files **routingkit_include.txt** and **routingkit_lib.txt** in *ChargingParkPlacement/*. After that write the relative path to the lib and include folder of RoutingKit into them. For example if you installed RoutingKit in the same directory as ChargingParkPlacement you would have the following two files.
+
+\> routingkit_include.txt
+```
+../RoutingKit/include
+```
+\> routingkit_lib.txt
+```
+../RoutingKit/lib
+```
+
 
 ## Graphs
 A contracted version of the highway network graphs for Germany, Spain and Europe are already included in the data folder, each consisting of a *\<graph\>_nodes.csv* and a *\<graph\>_arcs_.csv*. By default only these graphs can be used. You can set the graph using the -c parameter
@@ -26,6 +44,7 @@ If you want to use different graphs you can load them directly as *pbf*-file, wh
 ```
 osmosis --read-pbf <graph>-latest.osm.pbf --tf accept-ways highway=motorway,motorway_link --tf reject-relations --used-node --write-pbf <graph>_motorways.pbf
 ```
+After that you can use the *precompute_graph* function in */src/main.cpp* to load the pbf file and export the contracted grpah.
 
 ## Documentation
 We now provide some examples on how to use the heuristics Pruning, Park Extending and PNM.

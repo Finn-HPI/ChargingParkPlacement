@@ -225,7 +225,7 @@ void check_coverage(ContractedGraph& graph, vector<bool>& has_station, int k, Co
                             first_dist = d[curr];
                         curr = p[curr];
                     }
-                    if (first_dist != 0 && d[v] - first_dist >= k) continue;
+                    // if (first_dist != 0 && d[v] - first_dist >= k) continue;
                     if (is_non_unique_shortest_path_covered) continue;
                     violations.push_back(violations.size());
                     nodes.push_back(v);
@@ -239,8 +239,7 @@ void check_coverage(ContractedGraph& graph, vector<bool>& has_station, int k, Co
     cout << "violations: " << violations.size() << endl;
 }
 
-void compute_turning_points(ContractedGraph& cg, string cover, string output_location){
-    vector<bool> has_station(cg.node_count(), false);
+void compute_turning_points(ContractedGraph& cg, string cover, string output_location, vector<bool> has_station){
     int c = 0;
 	for (int i = 0; i < cg.node_count(); ++i) {
 		if (cg.parks[i] > 0) {
@@ -251,6 +250,12 @@ void compute_turning_points(ContractedGraph& cg, string cover, string output_loc
     vector<bool> arc_covered(cg.arc_count(), false);
     load_cover(cover, cg, arc_covered, has_station);
     compute_turning_points_and_export(arc_covered, output_location, cg);
+}
+
+void precompute_graph(string pbf_path, string output_location){
+    auto graph = simple_load_osm_car_routing_graph_from_pbf(pbf_path, nullptr, false);
+    auto cg = clean_graph(graph);
+    cg = contract_graph(output_location, cg, cg.location);
 }
 
 int main(int argc, const char* argv[]) {
@@ -266,8 +271,8 @@ int main(int argc, const char* argv[]) {
             ("tesla,t", "Include Tesla super-charging parks")
             ("output,o", po::value<string>(), "Output location of produced cover")
             ("validate,v", "Validate the produced cover")
-            ("min_dist,m", po::value<double>()->default_value(0.5), "[Park Extending] min_dist value")
-            ("random,r", po::value<bool>(), "[Park Extending] randomize min_dist value")
+            ("min_dist,m", po::value<double>(), "[Park Extending] min_dist value")
+            ("random,r", "[Park Extending] randomize min_dist value")
             ("max_time", po::value<long long>()->default_value(numeric_limits<long long>::max()), "[Park Extending] Max time (m) for finding a good cover with randomized min_dist")
             ("pool_size,p", po::value<int>()->default_value(20), "Threadpool size")
             ("turningpoints", po::value<string>(), "[Coverage Analysis] Compute turningpoints for a given cover, if cover extends IONITY or Tesla add -i or -t");
@@ -289,11 +294,8 @@ int main(int argc, const char* argv[]) {
         string output = vm["output"].as<string>();
         string country = vm["country"].as<string>();
 
-        // load graph
-        //  auto graph = simple_load_osm_car_routing_graph_from_pbf("germany_motorways.pbf", nullptr, false);
-        //  auto cg = build_station_graph(graph, false);
-        //  cg = contract_graph(cg, cg.location);
-        auto cg = load_graph("../data/" + country + "/" + country);  // load precomputed, contracted graph
+        // load precomputed, contracted graph
+        auto cg = load_graph("../data/" + country + "/" + country);
         // build contraction hierarchy graph
         auto tail = invert_inverse_vector(cg.first_out);
         auto ch = ContractionHierarchy::build(
@@ -311,8 +313,13 @@ int main(int argc, const char* argv[]) {
         if (vm.count("tesla")) add_charging_parks("../data/tesla_supercharger.csv", cg.node_count(), cg.first_out, cg.head, cg.weight, cg.latitude, cg.longitude, cg.parks, cg.park_points, cg.location);
 
         if (vm.count("turningpoints")) {
+            vector<bool> has_station(cg.node_count(), false);
             string cover = vm["turningpoints"].as<string>();
-            compute_turning_points(cg, cover, output);
+            if (vm.count("k") && vm.count("validate")) {
+                int k = vm["k"].as<int>() * 1000;
+                check_coverage(cg, has_station, k, ch);
+            }
+            compute_turning_points(cg, cover, output, has_station);
             return 0;
         }
         if (!vm.count("k")) {

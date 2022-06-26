@@ -1,2 +1,4 @@
 .vscode
 build/*
+routingkit_include.txt
+routingkit_lib.txt

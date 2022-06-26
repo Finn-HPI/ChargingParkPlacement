@@ -286,21 +286,20 @@ ContractedGraph contract_graph(string name, ContractedGraph& cg, vector<bool>& n
     }
     cg_new.first_out[node_count] = last_arc;
 
-    // uncomment if you want to export the contracted graph
-    // ofstream out2(name + "_nodes.csv");
-    // out2 << cg_new.node_count() << endl;
-    // for (int x = 0; x < cg_new.node_count(); ++x) {
-    // 	out2 << x << "," << cg_new.first_out[x] << "," << cg_new.first_out[x+1] << "," << cg_new.latitude[x] << "," << cg_new.longitude[x] << endl;
-    // }
-    // out2.close();
-    // ofstream out3(name + "_arcs.csv");
-    // for (int x = 0; x < cg_new.node_count(); ++x) {
-    //     for (int arc = cg_new.first_out[x]; arc < cg_new.first_out[x+1]; ++arc) {
-    //         int y = cg_new.head[arc];
-    //         out3 << arc << "," << cg_new.weight[arc] << "," << cg_new.head[arc] << endl;
-    //     }
-    // }
-    // out3.close();
+    ofstream out_nodes(name + "_nodes.csv");
+    out_nodes << cg_new.node_count() << endl;
+    for (int x = 0; x < cg_new.node_count(); ++x) {
+    	out_nodes << x << "," << cg_new.first_out[x] << "," << cg_new.first_out[x+1] << "," << cg_new.latitude[x] << "," << cg_new.longitude[x] << endl;
+    }
+    out_nodes.close();
+    ofstream out_arcs(name + "_arcs.csv");
+    for (int x = 0; x < cg_new.node_count(); ++x) {
+        for (int arc = cg_new.first_out[x]; arc < cg_new.first_out[x+1]; ++arc) {
+            int y = cg_new.head[arc];
+            out_arcs << arc << "," << cg_new.weight[arc] << "," << cg_new.head[arc] << endl;
+        }
+    }
+    out_arcs.close();
     return cg_new;
 }
 
